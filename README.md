@@ -1,4 +1,4 @@
-# TTGO_LoRa_SSD1306_MQ135
+# TTGO_LoRa_SSD1306_CCS811
 
 ## objectif
 send Air quality,temp and humidity data over loRa emitter to a loRa broker
