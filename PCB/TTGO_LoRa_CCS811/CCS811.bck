@@ -1,0 +1,7 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP CCS811
+D capteur I2C CO2 et TVOC
+$ENDCMP
+#
+#End Doc Library

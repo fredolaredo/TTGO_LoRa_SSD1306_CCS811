@@ -1,0 +1,5 @@
+(sym_lib_table
+  (lib (name TTGO)(type Legacy)(uri E:/Dropbox/__Technologie/__Projets/TTGO_LoRa_SSD1306_CCS811/PCB/TTGO_LoRa_CCS811/TTGO.lib)(options "")(descr ""))
+  (lib (name CCS811)(type Legacy)(uri E:/Dropbox/__Technologie/__Projets/TTGO_LoRa_SSD1306_CCS811/PCB/TTGO_LoRa_CCS811/CCS811.lib)(options "")(descr ""))
+  (lib (name DHT22)(type Legacy)(uri E:/Dropbox/__Technologie/__Projets/TTGO_LoRa_SSD1306_CCS811/PCB/TTGO_LoRa_CCS811/DHT22.lib)(options "")(descr ""))
+)
