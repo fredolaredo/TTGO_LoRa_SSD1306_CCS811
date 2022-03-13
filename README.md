@@ -7,7 +7,7 @@ Collect Air quality, temp and humidity data
 ## Send Data
 collect CO2 and TVOC data from CCS811
 
-Send data in json format to the borker through LoRa emmitter 
+Send data in json format to the broker through LoRa emmitter 
 
 broker forward data to the mosquitto server 
 
