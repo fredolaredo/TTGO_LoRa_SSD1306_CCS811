@@ -55,29 +55,6 @@ volatile int prevState;
 #define LORA_IRQ  26      // GPIO26 - SX1276 IRQ (interrupt request)
 
 ////////////////////////////////
-// DHT22
-////////////////////////////////
-#include <Adafruit_Sensor.h>
-#include <DHT.h>
-#include <DHT_U.h>
-
-#define DHTPIN 25       // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
-
-float temperature;
-float humidity;
-
-DHT dht22(DHTPIN, DHTTYPE);
-sensors_event_t event;
-float DHTtemperature = 0;
-float DHThumidity = 0;
-
-void readDHT() {
-  DHTtemperature = dht22.readTemperature();
-  DHThumidity    = dht22.readHumidity();
-} 
-
-////////////////////////////////
 // WiFi
 ////////////////////////////////
 #include <WiFi.h>
@@ -129,6 +106,49 @@ bool WiFiConnect() {
   Serial.print("--> WiFi Connect End : "); Serial.println(retval ? "OK" : "FAILED");
   return retval;
 }
+
+/////////////////////////////////////////////////////
+// OTA
+/////////////////////////////////////////////////////
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
+
+AsyncWebServer server(80);
+
+void initOTA(){
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Hi! I am ESP32.");
+  });
+
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+////////////////////////////////
+// DHT22
+////////////////////////////////
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+
+#define DHTPIN 25       // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
+
+float temperature;
+float humidity;
+
+DHT dht22(DHTPIN, DHTTYPE);
+sensors_event_t event;
+float DHTtemperature = 0;
+float DHThumidity = 0;
+
+void readDHT() {
+  DHTtemperature = dht22.readTemperature();
+  DHThumidity    = dht22.readHumidity();
+} 
+
 
 ////////////////////////////////
 // NTP
@@ -245,6 +265,20 @@ void onReceive(int packetSize) {
   portEXIT_CRITICAL_ISR(&mux);
 }
 
+void initLoRa(){
+  LoRa.setPins(LORA_CS,LORA_RST,LORA_IRQ);
+  if (!LoRa.begin(LORA_BAND)) {
+    LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
+    LoRa.setCodingRate4(LORA_CODINGRATE_DENOMINATOR);
+    LoRa.setSignalBandwidth(LORA_BANDWIDTH);
+    LoRa.setTxPower(LORA_TX_POWER);
+    Serial.println("LoRa init failed. Check your connections.");
+    while (true);
+  }
+  //attachInterrupt(digitalPinToInterrupt(LORA_IRQ), LoraIRQ, RISING);
+  LoRa.onReceive(onReceive);
+  LoRa.onTxDone(onTxDone);
+}
 
 ////////////////////////////////
 // prepare data to send
@@ -344,13 +378,16 @@ void displayWait() {
   display.setCursor(0,2); 
   display.printf("CO2  %4d",CO2); 
   display.setCursor(0,3); 
-  display.printf("TVOC %4d",TVOC); 
-  
-  display.setCursor(0,7);
+  display.printf("TVOC %4d",TVOC);
+  if (WiFi.isConnected()) {
+    display.setCursor(0,6);
+    display.print(WiFi.localIP().toString());
+  }
+  display.setCursor(14,7); WiFi.isConnected() ? display.print("Wi") : display.print("  ");
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
   display.printf("%02d:%02d:%02d",n->tm_hour,n->tm_min,n->tm_sec);
-  display.setCursor(14,7); WiFi.isConnected() ? display.print("Wi") : display.print("  ");
+
   display.setCursor(8, 7); LoRa.isTransmitting() ? display.print("Lo") : display.print("  ");
   display.display();
 }
@@ -368,34 +405,25 @@ void setup() {
 
   initOLED();
 
-  // LORA INIT
-  display.print("LoRa ");
-  display.display();
-  LoRa.setPins(LORA_CS,LORA_RST,LORA_IRQ);
-  if (!LoRa.begin(LORA_BAND)) {
-    LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
-    LoRa.setCodingRate4(LORA_CODINGRATE_DENOMINATOR);
-    LoRa.setSignalBandwidth(LORA_BANDWIDTH);
-    LoRa.setTxPower(LORA_TX_POWER);
-    Serial.println("LoRa init failed. Check your connections.");
-    display.println("LoRa init failed !");
-    display.display();
-    while (true);
-  }
-  display.println("started");
-  display.display();
-  LoRa_rxMode();
+  // WiFi init
+  display.print("WiFi "); display.display();
+  WiFi.begin(AP_NAME, AP_PASSRHRASE);
+  WiFi.onEvent(onWifiEvent);
+  display.println("OK"); display.display();
 
-  //attachInterrupt(digitalPinToInterrupt(LORA_IRQ), LoraIRQ, RISING);
-  LoRa.onReceive(onReceive);
-  LoRa.onTxDone(onTxDone);
+  display.print("OTA "); display.display();
+  initOTA();
+  display.println("OK"); display.display();
+
+  // LORA INIT
+  display.print("LoRa "); display.display();
+  initLoRa();
+  display.println("OK"); display.display();
 
   // DHT 
-  display.print("DHT22 ");
-  display.display();
+  display.print("DHT22 "); display.display();
   dht22.begin();
-  display.println("started");
-  display.display();
+  display.println("OK"); display.display();
 
   // send Data timer 
   timerSend = timerBegin(0, 80, true);
@@ -412,24 +440,15 @@ void setup() {
   timerAttachInterrupt(timerAir, &onAir, true);
   timerAlarmWrite(timerAir, time_to_update_Air_msecs * mS_TO_S_FACTOR, true);
 
-  // WiFi init
-   WiFi.begin(AP_NAME, AP_PASSRHRASE);
-  WiFi.onEvent(onWifiEvent);
-
    // NTPClient init
-  display.print("NTP ");
-  display.display();
+  display.print("NTP "); display.display();
   timeClient.begin();
-  Serial.println("NTPClient started");
-  display.println("started");
-  display.display();
+  display.println("OK");display.display();
 
   // CCS811 Init
-  display.print("CCS811 ");
-  display.display();  
+  display.print("CCS811 "); display.display();  
   CCS811_Init();
-  display.println("started");
-  display.display();
+  display.println("OK"); display.display();
   delay(2000);
 
 }
@@ -461,8 +480,7 @@ void loop(void)
 
   case NTP:
     if(!WiFi.isConnected()) WiFiConnect();
-    timeClient.update(); 
-    WiFi.disconnect(true);
+    //WiFi.disconnect(true);
     state = WAIT;
     break;
 
@@ -496,4 +514,5 @@ void loop(void)
   }
 
   displayWait();
+  timeClient.update(); 
 }
