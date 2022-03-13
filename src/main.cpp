@@ -7,11 +7,18 @@
 ////////////////////////////////
 // timer counts
 ////////////////////////////////
-//const uint64_t time_to_update_NTP_secs = 3600;
+const uint64_t time_to_update_NTP_secs = 3600;
 const int time_to_send_msecs = 30003 ;
 const int time_to_update_Air_msecs = 2034 ;
-float temperature;
-float humidity;
+
+////////////////////////////////
+// Interrupts & Sleep
+////////////////////////////////
+#include <esp_sleep.h>
+#define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
+#define mS_TO_S_FACTOR 1000ULL     /* Conversion factor for milli seconds to seconds */
+
+portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 
 ////////////////////////////////
 // Program state
@@ -48,36 +55,6 @@ volatile int prevState;
 #define LORA_IRQ  26      // GPIO26 - SX1276 IRQ (interrupt request)
 
 ////////////////////////////////
-// Interrupts & Sleep
-////////////////////////////////
-#include <esp_sleep.h>
-#define uS_TO_S_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
-#define mS_TO_S_FACTOR 1000ULL     /* Conversion factor for milli seconds to seconds */
-
-portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-hw_timer_t *timerSend = NULL;
-//hw_timer_t *timerNTP = NULL;
-hw_timer_t *timerAir = NULL;
-
-void IRAM_ATTR onSend() {
-  portENTER_CRITICAL_ISR(&mux);
-  state = SEND;
-  portEXIT_CRITICAL_ISR(&mux);
-}
-
-/* void IRAM_ATTR onNTP() {
-  portENTER_CRITICAL_ISR(&mux);
-  state = NTP;
-  portEXIT_CRITICAL_ISR(&mux);
-} */
-
-void IRAM_ATTR onAir() {
-  portENTER_CRITICAL_ISR(&mux);
-  state = AIR;
-  portEXIT_CRITICAL_ISR(&mux);
-}
-
-////////////////////////////////
 // DHT22
 ////////////////////////////////
 #include <Adafruit_Sensor.h>
@@ -86,6 +63,9 @@ void IRAM_ATTR onAir() {
 
 #define DHTPIN 25       // Digital pin connected to the DHT sensor
 #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
+
+float temperature;
+float humidity;
 
 DHT dht22(DHTPIN, DHTTYPE);
 sensors_event_t event;
@@ -100,7 +80,7 @@ void readDHT() {
 ////////////////////////////////
 // WiFi
 ////////////////////////////////
-/* #include <WiFi.h>
+#include <WiFi.h>
 #include <WiFiClient.h>
 
 WiFiClient wifiClient; 
@@ -149,7 +129,7 @@ bool WiFiConnect() {
   Serial.print("--> WiFi Connect End : "); Serial.println(retval ? "OK" : "FAILED");
   return retval;
 }
- */
+
 ////////////////////////////////
 // NTP
 ////////////////////////////////
@@ -158,6 +138,14 @@ bool WiFiConnect() {
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 3600, 60000);
+
+hw_timer_t *timerNTP = NULL;
+
+void IRAM_ATTR onNTP() {
+  portENTER_CRITICAL_ISR(&mux);
+  state = NTP;
+  portEXIT_CRITICAL_ISR(&mux);
+}
 
 ////////////////////////////////
 // CCS811
@@ -168,6 +156,14 @@ Adafruit_CCS811 ccs;
 
 uint16_t CO2;
 uint16_t TVOC;
+
+hw_timer_t *timerAir = NULL;
+
+void IRAM_ATTR onAir() {
+  portENTER_CRITICAL_ISR(&mux);
+  state = AIR;
+  portEXIT_CRITICAL_ISR(&mux);
+}
 
 void CCS811_Init() {
   if(!ccs.begin()){
@@ -212,6 +208,13 @@ String textSend, textRecv ;
 const uint8_t LoRa_buffer_size = 128; // Define the payload size here
 char txpacket[LoRa_buffer_size];
 
+hw_timer_t *timerSend = NULL;
+
+void IRAM_ATTR onSend() {
+  portENTER_CRITICAL_ISR(&mux);
+  state = SEND;
+  portEXIT_CRITICAL_ISR(&mux);
+}
 
 void LoRa_rxMode(){
   LoRa.disableInvertIQ();               // normal mode
@@ -244,7 +247,8 @@ void onReceive(int packetSize) {
 
 
 ////////////////////////////////
-// Send data
+// prepare data to send
+// format json message
 ////////////////////////////////
 
 size_t prepareTxFrame(uint8_t port) {
@@ -348,8 +352,6 @@ uint8_t contrast_display = 1;
 int contrast_up_down = 1;
 
 U8X8_SSD1306_128X64_NONAME_HW_I2C display(/* reset= */ OLED_RST);
-//U8G2_SSD1306_128X64_NONAME_1_HW_I2C display();
-//U8G2_SSD1306_128X64_NONAME_1_HW_I2C display(U8G2_R2,OLED_RST);
 
 
 void initOLED(void)
@@ -385,11 +387,11 @@ void displayWait() {
   display.setCursor(0,3); 
   display.printf("TVOC %4d",TVOC); 
   
-  /*display.setCursor(0,7);
+  display.setCursor(0,7);
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
-  display.printf("%02d:%02d:%02d",n->tm_hour,n->tm_min,n->tm_sec); */
-  //display.setCursor(14,7); WiFi.isConnected() ? display.print("Wi") : display.print("  ");
+  display.printf("%02d:%02d:%02d",n->tm_hour,n->tm_min,n->tm_sec);
+  display.setCursor(14,7); WiFi.isConnected() ? display.print("Wi") : display.print("  ");
   display.setCursor(8, 7); LoRa.isTransmitting() ? display.print("Lo") : display.print("  ");
   //display.setCursor(11,7); mqttClient.connected() ? display.print("Mq") : display.print("  ");
   display.display();
@@ -443,9 +445,9 @@ void setup() {
   timerAlarmWrite(timerSend, time_to_send_msecs * mS_TO_S_FACTOR, true);
 
   // NTP timer
-  /* timerNTP = timerBegin(1, 80, true);
+  timerNTP = timerBegin(1, 80, true);
   timerAttachInterrupt(timerNTP, &onNTP, true);
-  timerAlarmWrite(timerNTP, time_to_update_NTP_secs * uS_TO_S_FACTOR, true); */
+  timerAlarmWrite(timerNTP, time_to_update_NTP_secs * uS_TO_S_FACTOR, true);
 
   // Air sense timer
   timerAir = timerBegin(2, 80, true);
@@ -453,16 +455,16 @@ void setup() {
   timerAlarmWrite(timerAir, time_to_update_Air_msecs * mS_TO_S_FACTOR, true);
 
   // WiFi init
- /*  WiFi.begin(AP_NAME, AP_PASSRHRASE);
-  WiFi.onEvent(onWifiEvent); */
+   WiFi.begin(AP_NAME, AP_PASSRHRASE);
+  WiFi.onEvent(onWifiEvent);
 
    // NTPClient init
-  /* display.print("NTP ");
+  display.print("NTP ");
   display.display();
   timeClient.begin();
   Serial.println("NTPClient started");
   display.println("started");
-  display.display(); */
+  display.display();
 
   // MQTT local mosquitto
   /* display.print("MQTT ");
@@ -493,12 +495,12 @@ void loop(void)
   case INIT:
     timerAlarmEnable(timerSend);
     timerAlarmEnable(timerAir);
-    /* timerAlarmEnable(timerNTP);
+    timerAlarmEnable(timerNTP);
     WiFiConnect();
-    reconnectMQTT();
-    Serial.printf("MQTT_Local : subscribe to [%s] ",subStrTempInt);
-    if (mqttClient.subscribe(subStrTempInt)) { Serial.println("OK"); } else { Serial.println("FAILED !"); }
-    timeClient.update(); */
+    //reconnectMQTT();
+    //Serial.printf("MQTT_Local : subscribe to [%s] ",subStrTempInt);
+    //if (mqttClient.subscribe(subStrTempInt)) { Serial.println("OK"); } else { Serial.println("FAILED !"); }
+    timeClient.update();
     display.clearDisplay();
     state = WAIT;
     break;
@@ -513,8 +515,9 @@ void loop(void)
     break;
 
   case NTP:
-    /* if(!WiFi.isConnected()) WiFiConnect();
-    timeClient.update(); */
+    if(!WiFi.isConnected()) WiFiConnect();
+    timeClient.update(); 
+    WiFi.disconnect(true);
     state = WAIT;
     break;
 
