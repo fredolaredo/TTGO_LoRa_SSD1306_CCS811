@@ -18,5 +18,10 @@ mosquitto events captured by a Telegraf agent and sent to influxdb database
 
 Data displayed in a chronograf dashboard
 
+## Material 
+TTGO board with SSD1306 display and LoRa emmitter
 
+CCS811 on a little board
+
+DHT22 for Temp and humidity data
 
