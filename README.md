@@ -25,3 +25,4 @@ CCS811 on a little board
 
 DHT22 for Temp and humidity data
 
+![image](https://user-images.githubusercontent.com/44102452/158061120-2bbef058-db87-4a4c-93e9-cdd9bc583987.png)
