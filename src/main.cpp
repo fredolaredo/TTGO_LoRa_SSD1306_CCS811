@@ -270,47 +270,6 @@ size_t prepareTxFrame(uint8_t port) {
   return size;
 }
 
-
-////////////////////////////////
-// MQTT
-////////////////////////////////
-/* #include <PubSubClient.h>
-
-char subStrTempInt[64] = "home/cubecell/#";
-char recvTopic[128];
-char recvMessage[128];
-float MQTTtemperature = 21.0;
-
-PubSubClient mqttClient(wifiClient);
-
-void receivedMQTT(char* topic, byte* payload, unsigned int length) {
-  int ret = strcmp(topic,"home/cubecell/temp");
-  if (ret==0) {
-    MQTTtemperature = strtof((char *)payload, NULL);
-    Serial.printf("MQTT temperature interieur = %.1f°C \n",temperature); 
-  }
-  state = MQTT;
-}
-
-bool reconnectMQTT() {
-  bool retval = true;
-  Serial.print("--> reconnect MQTT..");
-  if(!WiFi.isConnected()) WiFiConnect();
-  //Serial.print("Attempting MQTT connection...");
-  String clientId = "AirSender-";
-  clientId += String(random(0xffff), HEX);
-  if (mqttClient.connect(clientId.c_str(),MQTT_LOGIN,MQTT_PASSWD)) {
-    Serial.print("connected...");
-  } else {
-    Serial.print("failed, rc=");
-    Serial.print(mqttClient.state());
-    retval = false;
-  }
-  //Serial.print("--> reconnect MQTT End : "); 
-  Serial.println(retval ? "OK" : "FAILED");
-  return retval;
-}
- */
 /////////////////////////////////////////////////////////////////////////
 // ESP32 deep sleep & machine state 
 /////////////////////////////////////////////////////////////////////////
@@ -393,7 +352,6 @@ void displayWait() {
   display.printf("%02d:%02d:%02d",n->tm_hour,n->tm_min,n->tm_sec);
   display.setCursor(14,7); WiFi.isConnected() ? display.print("Wi") : display.print("  ");
   display.setCursor(8, 7); LoRa.isTransmitting() ? display.print("Lo") : display.print("  ");
-  //display.setCursor(11,7); mqttClient.connected() ? display.print("Mq") : display.print("  ");
   display.display();
 }
 
@@ -466,14 +424,6 @@ void setup() {
   display.println("started");
   display.display();
 
-  // MQTT local mosquitto
-  /* display.print("MQTT ");
-  display.display();
-  mqttClient.setServer(MQTT_SERVER,MQTT_PORT);
-  mqttClient.setCallback(receivedMQTT);
-  display.println("started");
-  display.display(); */
-
   // CCS811 Init
   display.print("CCS811 ");
   display.display();  
@@ -497,20 +447,15 @@ void loop(void)
     timerAlarmEnable(timerAir);
     timerAlarmEnable(timerNTP);
     WiFiConnect();
-    //reconnectMQTT();
-    //Serial.printf("MQTT_Local : subscribe to [%s] ",subStrTempInt);
-    //if (mqttClient.subscribe(subStrTempInt)) { Serial.println("OK"); } else { Serial.println("FAILED !"); }
     timeClient.update();
     display.clearDisplay();
     state = WAIT;
     break;
   
   case WAIT:
-    //mqttClient.loop();
     break;
 
   case MQTT:
-    //temperature = MQTTtemperature;
     state = WAIT;
     break;
 
