@@ -291,7 +291,7 @@ size_t prepareTxFrame(uint8_t port) {
   char st[40];
 
   StaticJsonDocument<200> jsonDoc;
-  jsonDoc["device"] = "Air";
+  jsonDoc["device"] = "CCS811";
   jsonDoc["CO2"] = CO2;
   jsonDoc["TVOC"] = TVOC;
   sprintf(st,"%.2f",temperature);
@@ -360,6 +360,14 @@ void initOLED(void)
 }
 
 void displayWait() {
+  time_t nowTime = timeClient.getEpochTime();
+  tm *n = localtime(&nowTime);
+
+  if((n->tm_hour > 21) || (n->tm_hour < 10)) {
+    display.noDisplay();
+    return;
+  }
+
   display.setFlipMode(flip_display);
   const uint8_t CONTRAST_PAS = 4;
   if (contrast_display > 254 - CONTRAST_PAS) contrast_up_down = -CONTRAST_PAS;
@@ -384,10 +392,7 @@ void displayWait() {
     display.print(WiFi.localIP().toString());
   }
   display.setCursor(14,7); WiFi.isConnected() ? display.print("Wi") : display.print("  ");
-  time_t nowTime = timeClient.getEpochTime();
-  tm *n = localtime(&nowTime);
   display.printf("%02d:%02d:%02d",n->tm_hour,n->tm_min,n->tm_sec);
-
   display.setCursor(8, 7); LoRa.isTransmitting() ? display.print("Lo") : display.print("  ");
   display.display();
 }
