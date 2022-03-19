@@ -291,7 +291,7 @@ size_t prepareTxFrame(uint8_t port) {
   char st[40];
 
   StaticJsonDocument<200> jsonDoc;
-  jsonDoc["device"] = "CCS811";
+  jsonDoc["device"] = DEVICE_NAME;
   jsonDoc["CO2"] = CO2;
   jsonDoc["TVOC"] = TVOC;
   sprintf(st,"%.2f",temperature);
@@ -363,7 +363,7 @@ void displayWait() {
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
 
-  if((n->tm_hour > 21) || (n->tm_hour < 10)) {
+  if((n->tm_hour > 21) || (n->tm_hour < 8)) {
     display.noDisplay();
     return;
   }
