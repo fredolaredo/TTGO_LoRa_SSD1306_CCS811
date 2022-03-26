@@ -7,9 +7,14 @@
 ////////////////////////////////
 // timer counts
 ////////////////////////////////
-const uint64_t time_to_update_NTP_secs = 3600;
+const uint64_t time_to_update_NTP_msecs = 3600000;
+uint64_t last_time_NTP;
+
 const int time_to_send_msecs = 30003 ;
+
 const int time_to_update_Air_msecs = 2034 ;
+uint64_t last_time_Air;
+
 
 ////////////////////////////////
 // Interrupts & Sleep
@@ -115,6 +120,9 @@ bool WiFiConnect() {
 #include <AsyncElegantOTA.h>
 
 AsyncWebServer server(80);
+
+// http://192.168.0.103/update
+
 
 void initOTA(){
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -435,14 +443,14 @@ void setup() {
   timerAlarmWrite(timerSend, time_to_send_msecs * mS_TO_S_FACTOR, true);
 
   // NTP timer
-  timerNTP = timerBegin(1, 80, true);
-  timerAttachInterrupt(timerNTP, &onNTP, true);
-  timerAlarmWrite(timerNTP, time_to_update_NTP_secs * uS_TO_S_FACTOR, true);
+  //timerNTP = timerBegin(1, 80, true);
+  //timerAttachInterrupt(timerNTP, &onNTP, true);
+  //timerAlarmWrite(timerNTP, time_to_update_NTP_secs * uS_TO_S_FACTOR, true);
 
   // Air sense timer
-  timerAir = timerBegin(2, 80, true);
-  timerAttachInterrupt(timerAir, &onAir, true);
-  timerAlarmWrite(timerAir, time_to_update_Air_msecs * mS_TO_S_FACTOR, true);
+  //timerAir = timerBegin(2, 80, true);
+  //timerAttachInterrupt(timerAir, &onAir, true);
+  //timerAlarmWrite(timerAir, time_to_update_Air_msecs * mS_TO_S_FACTOR, true);
 
    // NTPClient init
   display.print("NTP "); display.display();
@@ -467,8 +475,8 @@ void loop(void)
   switch (state) {
   case INIT:
     timerAlarmEnable(timerSend);
-    timerAlarmEnable(timerAir);
-    timerAlarmEnable(timerNTP);
+    //timerAlarmEnable(timerAir);
+    //timerAlarmEnable(timerNTP);
     WiFiConnect();
     timeClient.update();
     display.clearDisplay();
@@ -476,6 +484,8 @@ void loop(void)
     break;
   
   case WAIT:
+    if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
+    if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
     break;
 
   case MQTT:
@@ -484,7 +494,7 @@ void loop(void)
 
   case NTP:
     if(!WiFi.isConnected()) WiFiConnect();
-    //WiFi.disconnect(true);
+    last_time_NTP = millis();
     state = WAIT;
     break;
 
@@ -493,13 +503,14 @@ void loop(void)
     readDHT();
     temperature = isnan(DHTtemperature) ? temperature : DHTtemperature ;
     humidity = isnan(DHThumidity) ? humidity : DHThumidity;
+    last_time_Air = millis();
     state = WAIT;
     break;
 
   case SEND:
     prepareTxFrame(1);
     LoRa_sendMessage();
-    //flip_display = flip_display == 1 ? 0 : 1 ;
+    flip_display = flip_display == 1 ? 0 : 1 ;
     state = WAIT;
     break;
 
