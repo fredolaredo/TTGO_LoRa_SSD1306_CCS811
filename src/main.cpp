@@ -166,14 +166,6 @@ void readDHT() {
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 3600, 60000);
 
-hw_timer_t *timerNTP = NULL;
-
-void IRAM_ATTR onNTP() {
-  portENTER_CRITICAL_ISR(&mux);
-  state = NTP;
-  portEXIT_CRITICAL_ISR(&mux);
-}
-
 ////////////////////////////////
 // CCS811
 ///////////////////////////////
@@ -183,14 +175,6 @@ Adafruit_CCS811 ccs;
 
 uint16_t CO2;
 uint16_t TVOC;
-
-hw_timer_t *timerAir = NULL;
-
-void IRAM_ATTR onAir() {
-  portENTER_CRITICAL_ISR(&mux);
-  state = AIR;
-  portEXIT_CRITICAL_ISR(&mux);
-}
 
 void CCS811_Init() {
   if(!ccs.begin()){
@@ -442,16 +426,6 @@ void setup() {
   timerAttachInterrupt(timerSend, &onSend, true);
   timerAlarmWrite(timerSend, time_to_send_msecs * mS_TO_S_FACTOR, true);
 
-  // NTP timer
-  //timerNTP = timerBegin(1, 80, true);
-  //timerAttachInterrupt(timerNTP, &onNTP, true);
-  //timerAlarmWrite(timerNTP, time_to_update_NTP_secs * uS_TO_S_FACTOR, true);
-
-  // Air sense timer
-  //timerAir = timerBegin(2, 80, true);
-  //timerAttachInterrupt(timerAir, &onAir, true);
-  //timerAlarmWrite(timerAir, time_to_update_Air_msecs * mS_TO_S_FACTOR, true);
-
    // NTPClient init
   display.print("NTP "); display.display();
   timeClient.begin();
@@ -475,8 +449,6 @@ void loop(void)
   switch (state) {
   case INIT:
     timerAlarmEnable(timerSend);
-    //timerAlarmEnable(timerAir);
-    //timerAlarmEnable(timerNTP);
     WiFiConnect();
     timeClient.update();
     display.clearDisplay();
