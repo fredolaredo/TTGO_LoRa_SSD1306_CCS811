@@ -10,9 +10,9 @@
 const uint64_t time_to_update_NTP_msecs = 3600000;
 uint64_t last_time_NTP;
 
-const int time_to_send_msecs = 30003 ;
+const int time_to_send_msecs = 60003 ;
 
-const int time_to_update_Air_msecs = 2034 ;
+const int time_to_update_Air_msecs = 29924 ;
 uint64_t last_time_Air;
 
 
