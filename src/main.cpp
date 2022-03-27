@@ -16,6 +16,8 @@ uint64_t last_time_Send;
 const int time_to_update_Air_msecs = 29924 ;
 uint64_t last_time_Air;
 
+const int hour_switch_off = 23;
+const int hour_switch_on = 8;
 
 ////////////////////////////////
 // Interrupts & Sleep
@@ -444,7 +446,7 @@ void loop(void)
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
 
-  if((n->tm_hour > 21) || (n->tm_hour < 8)) {
+  if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
     display.noDisplay();
     return;
   } else {
