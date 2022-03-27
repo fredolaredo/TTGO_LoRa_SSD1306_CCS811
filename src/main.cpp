@@ -10,7 +10,8 @@
 const uint64_t time_to_update_NTP_msecs = 3600000;
 uint64_t last_time_NTP;
 
-const int time_to_send_msecs = 60003 ;
+const int time_to_Send_msecs = 60003 ;
+uint64_t last_time_Send;
 
 const int time_to_update_Air_msecs = 29924 ;
 uint64_t last_time_Air;
@@ -354,11 +355,6 @@ void displayWait() {
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
 
-  if((n->tm_hour > 21) || (n->tm_hour < 8)) {
-    display.noDisplay();
-    return;
-  }
-
   display.setFlipMode(flip_display);
   const uint8_t CONTRAST_PAS = 4;
   if (contrast_display > 254 - CONTRAST_PAS) contrast_up_down = -CONTRAST_PAS;
@@ -422,9 +418,9 @@ void setup() {
   display.println("OK"); display.display();
 
   // send Data timer 
-  timerSend = timerBegin(0, 80, true);
-  timerAttachInterrupt(timerSend, &onSend, true);
-  timerAlarmWrite(timerSend, time_to_send_msecs * mS_TO_S_FACTOR, true);
+  //timerSend = timerBegin(0, 80, true);
+  //timerAttachInterrupt(timerSend, &onSend, true);
+  //timerAlarmWrite(timerSend, time_to_Send_msecs * mS_TO_S_FACTOR, true);
 
    // NTPClient init
   display.print("NTP "); display.display();
@@ -445,10 +441,21 @@ void setup() {
 
 void loop(void)
 {
+  time_t nowTime = timeClient.getEpochTime();
+  tm *n = localtime(&nowTime);
+
+  if((n->tm_hour > 21) || (n->tm_hour < 8)) {
+    display.noDisplay();
+    return;
+  } else {
+    displayWait();
+  }
+
+  timeClient.update(); 
 
   switch (state) {
   case INIT:
-    timerAlarmEnable(timerSend);
+    //timerAlarmEnable(timerSend);
     WiFiConnect();
     timeClient.update();
     display.clearDisplay();
@@ -458,6 +465,7 @@ void loop(void)
   case WAIT:
     if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
     if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
+    if ((millis() - last_time_Send) > time_to_Send_msecs) state = SEND;
     break;
 
   case MQTT:
@@ -483,6 +491,7 @@ void loop(void)
     prepareTxFrame(1);
     LoRa_sendMessage();
     flip_display = flip_display == 1 ? 0 : 1 ;
+    last_time_Send = millis();
     state = WAIT;
     break;
 
@@ -500,6 +509,4 @@ void loop(void)
     break;
   }
 
-  displayWait();
-  timeClient.update(); 
 }
