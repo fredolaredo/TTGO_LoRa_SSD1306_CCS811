@@ -124,7 +124,7 @@ bool WiFiConnect() {
 
 AsyncWebServer server(80);
 
-// http://192.168.0.103/update
+// http://192.168.0.75/update
 
 
 void initOTA(){
