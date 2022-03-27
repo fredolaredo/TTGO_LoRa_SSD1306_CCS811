@@ -124,7 +124,7 @@ bool WiFiConnect() {
 
 AsyncWebServer server(80);
 
-// http://192.168.0.103/update
+// http://192.168.0.75/update
 
 
 void initOTA(){
@@ -169,7 +169,8 @@ void readDHT() {
 #include <NTPClient.h>
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 7200, 60000);
+NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 0, 60000);
+
 
 ////////////////////////////////
 // CCS811
