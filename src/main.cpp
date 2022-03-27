@@ -10,11 +10,14 @@
 const uint64_t time_to_update_NTP_msecs = 3600000;
 uint64_t last_time_NTP;
 
-const int time_to_send_msecs = 60003 ;
+const int time_to_Send_msecs = 60003 ;
+uint64_t last_time_Send;
 
-const int time_to_update_Air_msecs = 29924 ;
+const int time_to_update_Air_msecs = 2004 ;
 uint64_t last_time_Air;
 
+const int hour_switch_off = 23;
+const int hour_switch_on = 8;
 
 ////////////////////////////////
 // Interrupts & Sleep
@@ -154,7 +157,9 @@ float DHThumidity = 0;
 
 void readDHT() {
   DHTtemperature = dht22.readTemperature();
+  Serial.print(">temp:"); Serial.println(DHTtemperature);
   DHThumidity    = dht22.readHumidity();
+  Serial.print(">humidity:"); Serial.println(DHThumidity);
 } 
 
 ////////////////////////////////
@@ -164,7 +169,7 @@ void readDHT() {
 #include <NTPClient.h>
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 3600, 60000);
+NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 0, 60000);
 
 ////////////////////////////////
 // CCS811
@@ -188,7 +193,9 @@ void readCCS811() {
    if(ccs.available()){
     if(!ccs.readData()){
       CO2 = ccs.geteCO2();
+      Serial.print(">CO2:"); Serial.println(CO2);
       TVOC = ccs.getTVOC();
+      Serial.print(">TVOC:"); Serial.println(TVOC);
     }
     else{
       Serial.println("ERROR!");
@@ -219,7 +226,7 @@ String textSend, textRecv ;
 const uint8_t LoRa_buffer_size = 128; // Define the payload size here
 char txpacket[LoRa_buffer_size];
 
-hw_timer_t *timerSend = NULL;
+//hw_timer_t *timerSend = NULL;
 
 void IRAM_ATTR onSend() {
   portENTER_CRITICAL_ISR(&mux);
@@ -289,6 +296,8 @@ size_t prepareTxFrame(uint8_t port) {
   jsonDoc["temp"] = st;
   sprintf(st,"%.2f",humidity);
   jsonDoc["humid"] = st;
+  sprintf(st,"%ld",millis() / 1000);
+  jsonDoc["uptime_secs"] = st;
 
   size_t size = serializeJsonPretty(jsonDoc, textSend);
   Serial.printf("prepare packet [%d]\n", textSend.length());
@@ -354,11 +363,6 @@ void displayWait() {
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
 
-  if((n->tm_hour > 21) || (n->tm_hour < 8)) {
-    display.noDisplay();
-    return;
-  }
-
   display.setFlipMode(flip_display);
   const uint8_t CONTRAST_PAS = 4;
   if (contrast_display > 254 - CONTRAST_PAS) contrast_up_down = -CONTRAST_PAS;
@@ -422,9 +426,9 @@ void setup() {
   display.println("OK"); display.display();
 
   // send Data timer 
-  timerSend = timerBegin(0, 80, true);
-  timerAttachInterrupt(timerSend, &onSend, true);
-  timerAlarmWrite(timerSend, time_to_send_msecs * mS_TO_S_FACTOR, true);
+  //timerSend = timerBegin(0, 80, true);
+  //timerAttachInterrupt(timerSend, &onSend, true);
+  //timerAlarmWrite(timerSend, time_to_Send_msecs * mS_TO_S_FACTOR, true);
 
    // NTPClient init
   display.print("NTP "); display.display();
@@ -437,6 +441,8 @@ void setup() {
   display.println("OK"); display.display();
   delay(2000);
 
+  state = INIT;
+
 }
 
 //////////////////////////////////////
@@ -445,10 +451,21 @@ void setup() {
 
 void loop(void)
 {
+  timeClient.update(); 
+  time_t nowTime = timeClient.getEpochTime();
+  tm *n = localtime(&nowTime);
+
+  if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
+    display.noDisplay();
+    return;
+  } else {
+    displayWait();
+  }
+  
 
   switch (state) {
   case INIT:
-    timerAlarmEnable(timerSend);
+    //timerAlarmEnable(timerSend);
     WiFiConnect();
     timeClient.update();
     display.clearDisplay();
@@ -458,6 +475,7 @@ void loop(void)
   case WAIT:
     if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
     if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
+    if ((millis() - last_time_Send) > time_to_Send_msecs) state = SEND;
     break;
 
   case MQTT:
@@ -482,7 +500,8 @@ void loop(void)
   case SEND:
     prepareTxFrame(1);
     LoRa_sendMessage();
-    flip_display = flip_display == 1 ? 0 : 1 ;
+    //flip_display = flip_display == 1 ? 0 : 1 ;
+    last_time_Send = millis();
     state = WAIT;
     break;
 
@@ -500,6 +519,4 @@ void loop(void)
     break;
   }
 
-  displayWait();
-  timeClient.update(); 
 }
