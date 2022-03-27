@@ -171,6 +171,7 @@ void readDHT() {
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 0, 60000);
 
+
 ////////////////////////////////
 // CCS811
 ///////////////////////////////
@@ -298,6 +299,7 @@ size_t prepareTxFrame(uint8_t port) {
   jsonDoc["humid"] = st;
   sprintf(st,"%ld",millis() / 1000);
   jsonDoc["uptime_secs"] = st;
+  Serial.print(">uptime:"); Serial.println(st);
 
   size_t size = serializeJsonPretty(jsonDoc, textSend);
   Serial.printf("prepare packet [%d]\n", textSend.length());
