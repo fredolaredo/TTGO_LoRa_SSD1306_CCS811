@@ -169,7 +169,7 @@ void readDHT() {
 #include <NTPClient.h>
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 3600, 60000);
+NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 0, 60000);
 
 ////////////////////////////////
 // CCS811
