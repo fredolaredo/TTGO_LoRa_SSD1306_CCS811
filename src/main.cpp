@@ -456,7 +456,7 @@ void loop(void)
   timeClient.update(); 
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
-  if( (n->tm_mon >= 5 && n->tm_mday >=21) || (n->tm_mon <= 10 && n->tm_mday <=23) ) 
+  if( (n->tm_mon >= 6 && n->tm_mday >=21) || (n->tm_mon <= 10 && n->tm_mday <=23) ) 
   { NTP_client_offset = 7200; } else { NTP_client_offset = 3600; }
 
   if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
