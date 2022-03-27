@@ -13,7 +13,7 @@ uint64_t last_time_NTP;
 const int time_to_Send_msecs = 60003 ;
 uint64_t last_time_Send;
 
-const int time_to_update_Air_msecs = 29924 ;
+const int time_to_update_Air_msecs = 2004 ;
 uint64_t last_time_Air;
 
 const int hour_switch_off = 23;
@@ -157,7 +157,9 @@ float DHThumidity = 0;
 
 void readDHT() {
   DHTtemperature = dht22.readTemperature();
+  Serial.print(">temp:"); Serial.println(DHTtemperature);
   DHThumidity    = dht22.readHumidity();
+  Serial.print(">humidity:"); Serial.println(DHThumidity);
 } 
 
 ////////////////////////////////
@@ -191,7 +193,9 @@ void readCCS811() {
    if(ccs.available()){
     if(!ccs.readData()){
       CO2 = ccs.geteCO2();
+      Serial.print(">CO2:"); Serial.println(CO2);
       TVOC = ccs.getTVOC();
+      Serial.print(">TVOC:"); Serial.println(TVOC);
     }
     else{
       Serial.println("ERROR!");
@@ -222,7 +226,7 @@ String textSend, textRecv ;
 const uint8_t LoRa_buffer_size = 128; // Define the payload size here
 char txpacket[LoRa_buffer_size];
 
-hw_timer_t *timerSend = NULL;
+//hw_timer_t *timerSend = NULL;
 
 void IRAM_ATTR onSend() {
   portENTER_CRITICAL_ISR(&mux);
@@ -292,6 +296,8 @@ size_t prepareTxFrame(uint8_t port) {
   jsonDoc["temp"] = st;
   sprintf(st,"%.2f",humidity);
   jsonDoc["humid"] = st;
+  sprintf(st,"%ld",millis() / 1000);
+  jsonDoc["uptime_secs"] = st;
 
   size_t size = serializeJsonPretty(jsonDoc, textSend);
   Serial.printf("prepare packet [%d]\n", textSend.length());
@@ -435,6 +441,8 @@ void setup() {
   display.println("OK"); display.display();
   delay(2000);
 
+  state = INIT;
+
 }
 
 //////////////////////////////////////
@@ -443,6 +451,7 @@ void setup() {
 
 void loop(void)
 {
+  timeClient.update(); 
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
 
@@ -452,8 +461,7 @@ void loop(void)
   } else {
     displayWait();
   }
-
-  timeClient.update(); 
+  
 
   switch (state) {
   case INIT:
@@ -492,7 +500,7 @@ void loop(void)
   case SEND:
     prepareTxFrame(1);
     LoRa_sendMessage();
-    flip_display = flip_display == 1 ? 0 : 1 ;
+    //flip_display = flip_display == 1 ? 0 : 1 ;
     last_time_Send = millis();
     state = WAIT;
     break;
