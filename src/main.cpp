@@ -169,7 +169,7 @@ void readDHT() {
 #include <NTPClient.h>
 
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 0, 60000);
+NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 7200, 60000);
 
 ////////////////////////////////
 // CCS811
@@ -299,7 +299,7 @@ size_t prepareTxFrame(uint8_t port) {
   sprintf(st,"%ld",millis() / 1000);
   jsonDoc["uptime_secs"] = st;
   Serial.print(">uptime:"); Serial.println(st);
-  
+
   size_t size = serializeJsonPretty(jsonDoc, textSend);
   Serial.printf("prepare packet [%d]\n", textSend.length());
   return size;
