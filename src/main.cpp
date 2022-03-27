@@ -47,8 +47,7 @@ enum {
 volatile int state = INIT;
 volatile int prevState;
 
-/* specifique TTGO lora OLED pins */
-
+// specifique TTGO lora OLED pins
 // I2C OLED Display works with SSD1306 driver
 #define OLED_SDA   4
 #define OLED_SCL  15
@@ -117,15 +116,15 @@ bool WiFiConnect() {
 
 /////////////////////////////////////////////////////
 // OTA
+//
+// http://192.168.0.75/update
+//
 /////////////////////////////////////////////////////
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncElegantOTA.h>
 
 AsyncWebServer server(80);
-
-// http://192.168.0.75/update
-
 
 void initOTA(){
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -172,7 +171,6 @@ int NTP_client_offset = 7200;
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", NTP_client_offset, 60000);
-
 
 ////////////////////////////////
 // CCS811
@@ -228,8 +226,6 @@ String textSend, textRecv ;
 
 const uint8_t LoRa_buffer_size = 128; // Define the payload size here
 char txpacket[LoRa_buffer_size];
-
-//hw_timer_t *timerSend = NULL;
 
 void IRAM_ATTR onSend() {
   portENTER_CRITICAL_ISR(&mux);
@@ -334,7 +330,6 @@ void print_wakeup_reason(){
 
 }
 
-
 //////////////////////////////////////
 // OLED 
 //////////////////////////////////////
@@ -429,11 +424,6 @@ void setup() {
   dht22.begin();
   display.println("OK"); display.display();
 
-  // send Data timer 
-  //timerSend = timerBegin(0, 80, true);
-  //timerAttachInterrupt(timerSend, &onSend, true);
-  //timerAlarmWrite(timerSend, time_to_Send_msecs * mS_TO_S_FACTOR, true);
-
    // NTPClient init
   display.print("NTP "); display.display();
   timeClient.begin();
@@ -470,7 +460,6 @@ void loop(void)
 
   switch (state) {
   case INIT:
-    //timerAlarmEnable(timerSend);
     WiFiConnect();
     timeClient.update();
     display.clearDisplay();
