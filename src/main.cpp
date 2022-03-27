@@ -17,7 +17,7 @@ const int time_to_update_Air_msecs = 2004 ;
 uint64_t last_time_Air;
 
 const int hour_switch_off = 23;
-const int hour_switch_on = 8;
+const int hour_switch_on = 7;
 
 ////////////////////////////////
 // Interrupts & Sleep
@@ -168,8 +168,10 @@ void readDHT() {
 #include <WiFiUdp.h>
 #include <NTPClient.h>
 
+int NTP_client_offset = 7200;
+
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", 7200, 60000);
+NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", NTP_client_offset, 60000);
 
 
 ////////////////////////////////
@@ -456,6 +458,8 @@ void loop(void)
   timeClient.update(); 
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
+  if( (n->tm_mon >= 6 && n->tm_mday >=21) || (n->tm_mon <= 10 && n->tm_mday <=23) ) 
+  { NTP_client_offset = 7200; } else { NTP_client_offset = 3600; }
 
   if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
     display.noDisplay();
