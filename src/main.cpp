@@ -124,7 +124,7 @@ bool WiFiConnect() {
 
 AsyncWebServer server(80);
 
-// http://192.168.0.103/update
+// http://192.168.0.75/update
 
 
 void initOTA(){
@@ -172,6 +172,7 @@ int NTP_client_offset = 7200;
 
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "fr.pool.ntp.org", NTP_client_offset, 60000);
+
 
 ////////////////////////////////
 // CCS811
@@ -300,6 +301,7 @@ size_t prepareTxFrame(uint8_t port) {
   jsonDoc["humid"] = st;
   sprintf(st,"%ld",millis() / 1000);
   jsonDoc["uptime_secs"] = st;
+  Serial.print(">uptime:"); Serial.println(st);
 
   size_t size = serializeJsonPretty(jsonDoc, textSend);
   Serial.printf("prepare packet [%d]\n", textSend.length());
