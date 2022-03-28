@@ -437,6 +437,8 @@ void setup() {
 
   state = INIT;
 
+  delay(10);
+
 }
 
 //////////////////////////////////////
@@ -449,7 +451,6 @@ void loop(void)
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
 
-
   if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
     display.noDisplay();
     return;
@@ -457,7 +458,6 @@ void loop(void)
     displayWait();
   }
   
-
   switch (state) {
   case INIT:
     WiFiConnect();
