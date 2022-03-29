@@ -10,7 +10,7 @@
 const uint64_t time_to_update_NTP_msecs = 3600000;
 uint64_t last_time_NTP;
 
-const int time_to_Send_msecs = 60003 ;
+const int time_to_Send_msecs = 29989 ;
 uint64_t last_time_Send;
 
 const int time_to_update_Air_msecs = 2004 ;
@@ -389,6 +389,7 @@ void displayWait() {
   display.printf("%02d:%02d:%02d",n->tm_hour,n->tm_min,n->tm_sec);
   display.setCursor(8, 7); LoRa.isTransmitting() ? display.print("Lo") : display.print("  ");
   display.display();
+  delay(10);
 }
 
 //////////////////////////////////////
