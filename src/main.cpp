@@ -16,6 +16,8 @@ uint64_t last_time_Send;
 const int time_to_update_Air_msecs = 2004 ;
 uint64_t last_time_Air;
 
+const int time_to_Display_msecs = 500 ;
+
 const int hour_switch_off = 23;
 const int hour_switch_on = 7;
 
@@ -27,6 +29,7 @@ const int hour_switch_on = 7;
 #define mS_TO_S_FACTOR 1000ULL     /* Conversion factor for milli seconds to seconds */
 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+hw_timer_t *timerDisplay = NULL;
 
 ////////////////////////////////
 // Program state
@@ -36,6 +39,7 @@ enum {
   WAIT,
   NTP,
   AIR,
+  DISP,
   SEND,
   SENT,
   RECV,
@@ -345,6 +349,11 @@ int contrast_up_down = 1;
 
 U8X8_SSD1306_128X64_NONAME_HW_I2C display(/* reset= */ OLED_RST);
 
+void IRAM_ATTR onDisplay() {
+  portENTER_CRITICAL_ISR(&mux);
+  state = DISP;
+  portEXIT_CRITICAL_ISR(&mux);
+}
 
 void initOLED(void)
 { 
@@ -404,6 +413,9 @@ void setup() {
   Wire.begin(OLED_SDA, OLED_SCL);
 
   initOLED();
+  timerDisplay = timerBegin(0, 80, true);
+  timerAttachInterrupt(timerDisplay, &onDisplay, true);
+  timerAlarmWrite(timerDisplay, time_to_Display_msecs * mS_TO_S_FACTOR, true);
 
   // WiFi init
   display.print("WiFi "); display.display();
@@ -451,19 +463,12 @@ void loop(void)
   timeClient.update(); 
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
-
-  if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
-    display.noDisplay();
-    return;
-  } else {
-    displayWait();
-  }
   
   switch (state) {
   case INIT:
     WiFiConnect();
-    timeClient.update();
     display.clearDisplay();
+    timerAlarmEnable(timerDisplay);
     state = WAIT;
     break;
   
@@ -471,6 +476,15 @@ void loop(void)
     if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
     if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
     if ((millis() - last_time_Send) > time_to_Send_msecs) state = SEND;
+    break;
+
+  case DISP:
+    if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
+    display.noDisplay();
+    } else {
+      displayWait();
+    }
+    state = WAIT;
     break;
 
   case MQTT:
