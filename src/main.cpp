@@ -7,7 +7,7 @@
 ////////////////////////////////
 // timer counts
 ////////////////////////////////
-const uint64_t time_to_update_NTP_msecs = 3600000;
+const uint64_t time_to_update_NTP_msecs = 3600001;
 uint64_t last_time_NTP;
 
 const int time_to_Send_msecs = 29989 ;
@@ -340,11 +340,11 @@ void print_wakeup_reason(){
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
 boolean flip_display = true;
+boolean displayOn = true;
 uint8_t contrast_display = 1;
 int contrast_up_down = 1;
 
 U8X8_SSD1306_128X64_NONAME_HW_I2C display(/* reset= */ OLED_RST);
-
 
 void initOLED(void)
 { 
@@ -389,7 +389,6 @@ void displayWait() {
   display.printf("%02d:%02d:%02d",n->tm_hour,n->tm_min,n->tm_sec);
   display.setCursor(8, 7); LoRa.isTransmitting() ? display.print("Lo") : display.print("  ");
   display.display();
-  delay(10);
 }
 
 //////////////////////////////////////
@@ -438,8 +437,6 @@ void setup() {
 
   state = INIT;
 
-  delay(10);
-
 }
 
 //////////////////////////////////////
@@ -451,23 +448,21 @@ void loop(void)
   timeClient.update(); 
   time_t nowTime = timeClient.getEpochTime();
   tm *n = localtime(&nowTime);
-
-  if((n->tm_hour >= hour_switch_off) || (n->tm_hour <= hour_switch_on)) {
-    display.noDisplay();
-    return;
-  } else {
-    displayWait();
-  }
+  
+  if ((n->tm_hour >= hour_switch_on) && (n->tm_hour < hour_switch_off)) 
+  { displayOn = true; } else { displayOn = false; }
   
   switch (state) {
   case INIT:
     WiFiConnect();
-    timeClient.update();
     display.clearDisplay();
     state = WAIT;
     break;
   
   case WAIT:
+    if (displayOn) { displayWait();
+    } else { display.noDisplay(); }
+    delay(50);
     if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
     if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
     if ((millis() - last_time_Send) > time_to_Send_msecs) state = SEND;
