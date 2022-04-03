@@ -16,6 +16,8 @@ uint64_t last_time_Send;
 const int time_to_update_Air_msecs = 2004 ;
 uint64_t last_time_Air;
 
+const int time_to_Display_msecs = 500 ;
+
 const int hour_switch_off = 23;
 const int hour_switch_on = 7;
 
@@ -27,6 +29,7 @@ const int hour_switch_on = 7;
 #define mS_TO_S_FACTOR 1000ULL     /* Conversion factor for milli seconds to seconds */
 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
+hw_timer_t *timerDisplay = NULL;
 
 ////////////////////////////////
 // Program state
@@ -36,6 +39,7 @@ enum {
   WAIT,
   NTP,
   AIR,
+  DISP,
   SEND,
   SENT,
   RECV,
@@ -451,11 +455,12 @@ void loop(void)
   
   if ((n->tm_hour >= hour_switch_on) && (n->tm_hour < hour_switch_off)) 
   { displayOn = true; } else { displayOn = false; }
-  
+
   switch (state) {
   case INIT:
     WiFiConnect();
     display.clearDisplay();
+    timerAlarmEnable(timerDisplay);
     state = WAIT;
     break;
   
