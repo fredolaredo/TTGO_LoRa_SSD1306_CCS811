@@ -13,10 +13,11 @@ uint64_t last_time_NTP;
 const int time_to_Send_msecs = 29989 ;
 uint64_t last_time_Send;
 
-const int time_to_update_Air_msecs = 2004 ;
+const int time_to_update_Air_msecs = 1004 ;
 uint64_t last_time_Air;
 
 const int time_to_Display_msecs = 500 ;
+uint64_t last_time_Display;
 
 const int hour_switch_off = 23;
 const int hour_switch_on = 7;
@@ -160,9 +161,7 @@ float DHThumidity = 0;
 
 void readDHT() {
   DHTtemperature = dht22.readTemperature();
-  Serial.print(">temp:"); Serial.println(DHTtemperature);
   DHThumidity    = dht22.readHumidity();
-  Serial.print(">humidity:"); Serial.println(DHThumidity);
 } 
 
 ////////////////////////////////
@@ -198,9 +197,7 @@ void readCCS811() {
    if(ccs.available()){
     if(!ccs.readData()){
       CO2 = ccs.geteCO2();
-      Serial.print(">CO2:"); Serial.println(CO2);
       TVOC = ccs.getTVOC();
-      Serial.print(">TVOC:"); Serial.println(TVOC);
     }
     else{
       Serial.println("ERROR!");
@@ -457,61 +454,69 @@ void loop(void)
   { displayOn = true; } else { displayOn = false; }
 
   switch (state) {
-  case INIT:
-    WiFiConnect();
-    display.clearDisplay();
-    //timerAlarmEnable(timerDisplay);
-    state = WAIT;
-    break;
-  
-  case WAIT:
-    if (displayOn) { displayWait();
-    } else { display.noDisplay(); }
-    delay(100);
-    if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
-    if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
-    if ((millis() - last_time_Send) > time_to_Send_msecs) state = SEND;
-    break;
+    case INIT:
+      WiFiConnect();
+      display.clearDisplay();
+      state = WAIT;
+      break;
+    
+    case WAIT:
+      if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
+      if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
+      if ((millis() - last_time_Send) > time_to_Send_msecs) state = SEND;
+      if ((millis() - last_time_Display) > time_to_Display_msecs) state = DISP;
+      break;
 
-  case MQTT:
-    state = WAIT;
-    break;
+    case DISP:
+      if (displayOn) { displayWait();
+      } else { display.noDisplay(); }
+      last_time_Display  = millis();
+      state = WAIT;
+      break;
 
-  case NTP:
-    if(!WiFi.isConnected()) WiFiConnect();
-    last_time_NTP = millis();
-    state = WAIT;
-    break;
+    case MQTT:
+      state = WAIT;
+      break;
 
-  case AIR:
-    readCCS811();
-    readDHT();
-    temperature = isnan(DHTtemperature) ? temperature : DHTtemperature ;
-    humidity = isnan(DHThumidity) ? humidity : DHThumidity;
-    last_time_Air = millis();
-    state = WAIT;
-    break;
+    case NTP:
+      if(!WiFi.isConnected()) WiFiConnect();
+      last_time_NTP = millis();
+      state = WAIT;
+      break;
 
-  case SEND:
-    prepareTxFrame(1);
-    LoRa_sendMessage();
-    //flip_display = flip_display == 1 ? 0 : 1 ;
-    last_time_Send = millis();
-    state = WAIT;
-    break;
+    case AIR:
+      readCCS811();
+      readDHT();
+      temperature = isnan(DHTtemperature) ? temperature : DHTtemperature ;
+      humidity = isnan(DHThumidity) ? humidity : DHThumidity;
+      last_time_Air = millis();
+      //Serial.print(">CO2:"); Serial.println(CO2);
+      //Serial.print(">TVOC:"); Serial.println(TVOC);
+      //Serial.print(">temp:"); Serial.println(DHTtemperature);
+      //Serial.print(">humidity:"); Serial.println(DHThumidity);
+      state = WAIT;
+      break;
 
-  case SENT:
-    display.setCursor(0,4);
-    display.printf("sent %d bytes\n",textSend.length());
-    display.printf("time %s\n",timeClient.getFormattedTime().c_str());
-    display.display();
-    LoRa.idle();
-    state = WAIT;
-    break;
+    case SEND:
+      prepareTxFrame(1);
+      LoRa_sendMessage();
+      //flip_display = flip_display == 1 ? 0 : 1 ;
+      last_time_Send = millis();
+      state = WAIT;
+      break;
 
-  default:
-    state = INIT;
-    break;
+    case SENT:
+      display.setCursor(0,4);
+      display.printf("sent %d bytes\n",textSend.length());
+      display.printf("time %s\n",timeClient.getFormattedTime().c_str());
+      display.display();
+      LoRa.idle();
+      state = WAIT;
+      break;
+
+    default:
+      state = INIT;
+      break;
   }
 
 }
