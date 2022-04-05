@@ -29,7 +29,7 @@ const int hour_switch_on = 7;
 #define mS_TO_S_FACTOR 1000ULL     /* Conversion factor for milli seconds to seconds */
 
 portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-hw_timer_t *timerDisplay = NULL;
+// hw_timer_t *timerDisplay = NULL;
 
 ////////////////////////////////
 // Program state
@@ -460,14 +460,14 @@ void loop(void)
   case INIT:
     WiFiConnect();
     display.clearDisplay();
-    timerAlarmEnable(timerDisplay);
+    //timerAlarmEnable(timerDisplay);
     state = WAIT;
     break;
   
   case WAIT:
     if (displayOn) { displayWait();
     } else { display.noDisplay(); }
-    delay(50);
+    delay(100);
     if ((millis() - last_time_Air) > time_to_update_Air_msecs) state = AIR; 
     if ((millis() - last_time_NTP) > time_to_update_NTP_msecs) state = NTP;
     if ((millis() - last_time_Send) > time_to_Send_msecs) state = SEND;
